@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RunWASM</title>
+<style>
+:root {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-secondary: #f0f0f2;
+  --text: #1d1d1f;
+  --muted: #6e6e73;
+  --border: #d2d2d7;
+  --accent: #0071e3;
+  --output: #111113;
+  --output-text: #e8e8ed;
+  --shadow: 0 18px 60px rgba(0, 0, 0, .12);
+}
+
+[data-theme="dark"] {
+  --bg: #0d0d0f;
+  --surface: #18181b;
+  --surface-secondary: #222225;
+  --text: #f5f5f7;
+  --muted: #a1a1a6;
+  --border: #38383d;
+  --accent: #2997ff;
+  --output: #050506;
+  --output-text: #f5f5f7;
+  --shadow: 0 18px 60px rgba(0, 0, 0, .45);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transition: background .2s ease, color .2s ease;
+}
+
+header {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -.5px;
+}
+
+.theme-toggle {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 19px;
+  display: grid;
+  place-items: center;
+  transition: transform .2s ease, background .2s ease;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.06);
+}
+
+main {
+  width: min(960px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 80px 0;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 42px;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(40px, 7vw, 72px);
+  letter-spacing: -3px;
+  line-height: 1;
+}
+
+.hero p {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.drop-zone {
+  min-height: 280px;
+  border: 2px dashed var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  padding: 40px;
+  transition: border-color .2s ease, transform .2s ease, background .2s ease;
+}
+
+.drop-zone:hover,
+.drop-zone.dragging {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--surface) 94%, var(--accent));
+  transform: translateY(-2px);
+}
+
+.drop-icon {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 20px;
+  border-radius: 18px;
+  background: var(--surface-secondary);
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+}
+
+.drop-zone h2 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -.5px;
+}
+
+.drop-zone p {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.drop-zone strong {
+  color: var(--accent);
+}
+
+input[type="file"] {
+  display: none;
+}
+
+.output-window {
+  display: none;
+  margin: 36px auto 0;
+  width: 100%;
+  height: 420px;
+  min-width: 300px;
+  min-height: 220px;
+  max-width: 100%;
+  resize: both;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--output);
+  box-shadow: var(--shadow);
+}
+
+.output-window.visible {
+  display: flex;
+  flex-direction: column;
+}
+
+.output-header {
+  height: 52px;
+  flex: 0 0 52px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #29292d;
+  color: #f5f5f7;
+}
+
+.output-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.output-status {
+  color: #8e8e93;
+  font-size: 12px;
+}
+
+.output-area {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+  color: var(--output-text);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.log {
+  color: #e8e8ed;
+}
+
+.success {
+  color: #30d158;
+}
+
+.error {
+  color: #ff453a;
+}
+
+.info {
+  color: #64d2ff;
+}
+
+.file {
+  color: #bf5af2;
+}
+
+@media (max-width: 600px) {
+  header {
+    padding: 0 20px;
+  }
+
+  main {
+    padding: 55px 0;
+  }
+
+  .hero h1 {
+    letter-spacing: -2px;
+  }
+
+  .drop-zone {
+    min-height: 230px;
+    border-radius: 20px;
+  }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">RunWASM</div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">☾</button>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>Run WebAssembly.</h1>
+    <p>Drop multiple WASM modules. Instantiate them. Run them instantly.</p>
+  </section>
+
+  <div class="drop-zone" id="dropZone" tabindex="0" role="button">
+    <div>
+      <div class="drop-icon">⬡</div>
+      <h2>Drop your WASM files here</h2>
+      <p>or <strong>choose files</strong> from your device</p>
+    </div>
+  </div>
+
+  <input id="fileInput" type="file" accept=".wasm,application/wasm" multiple>
+
+  <section class="output-window" id="outputWindow">
+    <div class="output-header">
+      <span class="output-title">Output</span>
+      <span class="output-status" id="outputStatus">Ready</span>
+    </div>
+    <div class="output-area" id="outputArea"></div>
+  </section>
+</main>
+
+<script>
+const dropZone = document.getElementById("dropZone");
+const fileInput = document.getElementById("fileInput");
+const outputWindow = document.getElementById("outputWindow");
+const outputArea = document.getElementById("outputArea");
+const outputStatus = document.getElementById("outputStatus");
+const themeToggle = document.getElementById("themeToggle");
+
+const modules = [];
+
+function write(message, type = "log") {
+  const line = document.createElement("div");
+  line.className = type;
+  line.textContent = message;
+  outputArea.appendChild(line);
+  outputArea.scrollTop = outputArea.scrollHeight;
+}
+
+function createImports(fileName) {
+  const logValue = value => write(`[${fileName}] ${value}`);
+
+  return new Proxy({}, {
+    get(target, namespace) {
+      if (!(namespace in target)) {
+        target[namespace] = new Proxy({}, {
+          get(_, name) {
+            if (name === "memory") {
+              return new WebAssembly.Memory({ initial: 256, maximum: 512 });
+            }
+
+            if (name === "table") {
+              return new WebAssembly.Table({
+                initial: 0,
+                element: "anyfunc"
+              });
+            }
+
+            return (...args) => {
+              logValue(`${String(namespace)}.${String(name)}(${args.join(", ")})`);
+              return 0;
+            };
+          }
+        });
+      }
+
+      return target[namespace];
+    }
+  });
+}
+
+async function runFile(file) {
+  write(`\nLoading ${file.name}`, "file");
+
+  try {
+    const bytes = await file.arrayBuffer();
+    const module = await WebAssembly.compile(bytes);
+    const imports = createImports(file.name);
+    const instance = await WebAssembly.instantiate(module, imports);
+
+    modules.push({
+      file,
+      module,
+      instance
+    });
+
+    write(`Instantiated ${file.name}`, "success");
+
+    const exports = instance.exports;
+    const names = Object.keys(exports);
+
+    write(
+      `Exports: ${names.length ? names.join(", ") : "none"}`,
+      "info"
+    );
+
+    const entryPoints = ["_start", "main", "run"];
+
+    let executed = false;
+
+    for (const entry of entryPoints) {
+      if (typeof exports[entry] === "function") {
+        write(`Running ${entry}()`, "info");
+
+        try {
+          const result = exports[entry]();
+
+          if (result !== undefined) {
+            write(`Result: ${String(result)}`, "success");
+          }
+
+          write(`${entry}() completed`, "success");
+        } catch (error) {
+          write(`${entry}() failed: ${error.message}`, "error");
+        }
+
+        executed = true;
+        break;
+      }
+    }
+
+    if (!executed) {
+      const callable = names.filter(name => typeof exports[name] === "function");
+
+      if (callable.length) {
+        write(
+          `No standard entry point found. Callable exports: ${callable.join(", ")}`,
+          "info"
+        );
+      } else {
+        write("No callable exports found.", "info");
+      }
+    }
+  } catch (error) {
+    write(`Failed to run ${file.name}: ${error.message}`, "error");
+  }
+}
+
+async function handleFiles(fileList) {
+  const files = Array.from(fileList).filter(
+    file => file.name.toLowerCase().endsWith(".wasm")
+  );
+
+  if (!files.length) {
+    outputWindow.classList.add("visible");
+    write("No .wasm files were selected.", "error");
+    return;
+  }
+
+  outputWindow.classList.add("visible");
+  outputStatus.textContent = `Running ${files.length} module${files.length === 1 ? "" : "s"}`;
+
+  write(
+    `Received ${files.length} WASM module${files.length === 1 ? "" : "s"}`,
+    "info"
+  );
+
+  await Promise.all(files.map(runFile));
+
+  outputStatus.textContent = `${modules.length} loaded`;
+  write("\nExecution complete.", "success");
+}
+
+dropZone.addEventListener("click", () => fileInput.click());
+
+dropZone.addEventListener("keydown", event => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    fileInput.click();
+  }
+});
+
+fileInput.addEventListener("change", event => {
+  handleFiles(event.target.files);
+  event.target.value = "";
+});
+
+["dragenter", "dragover"].forEach(eventName => {
+  dropZone.addEventListener(eventName, event => {
+    event.preventDefault();
+    dropZone.classList.add("dragging");
+  });
+});
+
+["dragleave", "drop"].forEach(eventName => {
+  dropZone.addEventListener(eventName, event => {
+    event.preventDefault();
+    dropZone.classList.remove("dragging");
+  });
+});
+
+dropZone.addEventListener("drop", event => {
+  handleFiles(event.dataTransfer.files);
+});
+
+themeToggle.addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme === "dark";
+
+  if (dark) {
+    delete document.documentElement.dataset.theme;
+    themeToggle.textContent = "☾";
+  } else {
+    document.documentElement.dataset.theme = "dark";
+    themeToggle.textContent = "☀";
+  }
+});
+
+const resizeObserver = new ResizeObserver(() => {
+  outputArea.style.width = "100%";
+  outputArea.style.height = "100%";
+});
+
+resizeObserver.observe(outputWindow);
+</script>
+</body>
+</html>
